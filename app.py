@@ -5,6 +5,7 @@ import google.generativeai as genai
 import yt_dlp
 from flask import Flask, render_template, request, jsonify
 from datetime import datetime, timedelta
+import os
 
 app = Flask(__name__)
 
@@ -202,8 +203,9 @@ def api_remix():
 
 
 if __name__ == '__main__':
+    port = int(os.environ.get('PORT', 5000))
     print("\n" + "="*50)
     print("SIA Trend Finder Web Version")
-    print("Mo trinh duyet: http://localhost:5000")
+    print(f"Server is running on port {port}")
     print("="*50 + "\n")
-    app.run(debug=True, port=5000, threaded=True)
+    app.run(host='0.0.0.0', port=port, threaded=True)
