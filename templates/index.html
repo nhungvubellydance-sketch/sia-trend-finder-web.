@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIA Trend Finder 🔍</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="header-glow"></div>
+            <div class="header-content">
+                <div class="logo">
+                    <span class="logo-icon">🔍</span>
+                    <div>
+                        <h1>SIA Trend Finder</h1>
+                        <p class="subtitle">Tìm Jackpot Video & Remix Tiêu đề theo công thức SIA</p>
+                    </div>
+                </div>
+                <div class="header-badges">
+                    <span class="badge badge-free">100% Miễn phí</span>
+                    <span class="badge badge-ai">AI Powered</span>
+                </div>
+            </div>
+        </header>
+
+        <!-- Search Section -->
+        <section class="search-section">
+            <div class="search-box">
+                <div class="search-input-wrapper">
+                    <span class="search-icon">🎯</span>
+                    <input type="text" id="searchInput" placeholder="Nhập từ khóa niche... (VD: manifest love, law of attraction)" autocomplete="off">
+                    <button id="searchBtn" onclick="startSearch()">
+                        <span class="btn-text">Tìm Trending</span>
+                        <span class="btn-loader" style="display:none">⏳</span>
+                    </button>
+                </div>
+                <div class="search-criteria">
+                    <span>📅 Tất cả video</span>
+                    <span>🏆 Jackpot Detection</span>
+                    <span>🤖 AI Remix 80/20</span>
+                    <label class="views-filter">
+                        👁️ Min views:
+                        <select id="minViews">
+                            <option value="0">Tất cả</option>
+                            <option value="1000" selected>1K+</option>
+                            <option value="5000">5K+</option>
+                            <option value="10000">10K+</option>
+                            <option value="50000">50K+</option>
+                            <option value="100000">100K+</option>
+                            <option value="1000000">1M+</option>
+                        </select>
+                    </label>
+                </div>
+            </div>
+        </section>
+
+        <!-- Status -->
+        <div id="statusBar" class="status-bar" style="display:none">
+            <div class="status-content">
+                <div class="spinner"></div>
+                <span id="statusText">Đang tìm kiếm...</span>
+            </div>
+            <div class="progress-bar"><div id="progressFill" class="progress-fill"></div></div>
+        </div>
+
+        <!-- Stats Summary -->
+        <div id="statsSection" class="stats-section" style="display:none">
+            <div class="stat-card">
+                <div class="stat-number" id="totalResults">0</div>
+                <div class="stat-label">Video tìm thấy</div>
+            </div>
+            <div class="stat-card stat-jackpot">
+                <div class="stat-number" id="jackpotCount">0</div>
+                <div class="stat-label">🏆 Jackpot Video</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-number" id="maxViews">0</div>
+                <div class="stat-label">Views cao nhất</div>
+            </div>
+            <div class="action-buttons" style="flex-wrap: wrap; gap: 10px; align-items: center;">
+                <input type="password" id="apiKeyInput" placeholder="Nhập Gemini API Key để dùng AI Remix..." class="api-input" style="flex: 1; min-width: 200px; padding: 10px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.5); color: #fff;">
+                <button class="btn-remix" onclick="remixTitles()">🤖 AI Remix Tiêu đề</button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div id="resultsSection" class="results-section" style="display:none">
+            <div id="resultsList" class="results-list"></div>
+        </div>
+
+        <!-- Footer -->
+        <footer class="footer">
+            <p>Xây dựng dựa trên phương pháp <strong>Trend Hacking</strong> từ khóa học SIA 2023</p>
+            <p class="footer-sub">Công thức: Tìm Jackpot → Remix 80/20 → Quay theo Template → Viral 🚀</p>
+        </footer>
+    </div>
+
+    <script>
+        let currentResults = [];
+        let currentKeyword = '';
+
+        function startSearch() {
+            const keyword = document.getElementById('searchInput').value.trim();
+            if (!keyword) {
+                shakeInput();
+                return;
+            }
+            currentKeyword = keyword;
+
+            // UI updates
+            const btn = document.getElementById('searchBtn');
+            btn.querySelector('.btn-text').style.display = 'none';
+            btn.querySelector('.btn-loader').style.display = 'inline';
+            btn.disabled = true;
+
+            document.getElementById('statusBar').style.display = 'block';
+            document.getElementById('statusText').textContent = '🔍 Đang tìm kiếm trên YouTube... (có thể mất 1-2 phút)';
+            document.getElementById('progressFill').style.width = '30%';
+            document.getElementById('resultsSection').style.display = 'none';
+            document.getElementById('statsSection').style.display = 'none';
+
+            const minViews = parseInt(document.getElementById('minViews').value);
+
+            fetch('/api/search', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({keyword, min_views: minViews})
+            })
+            .then(res => res.json())
+            .then(data => {
+                document.getElementById('progressFill').style.width = '100%';
+                
+                if (data.error) {
+                    document.getElementById('statusText').textContent = '❌ ' + data.error;
+                    setTimeout(() => { document.getElementById('statusBar').style.display = 'none'; }, 3000);
+                } else {
+                    currentResults = data.results;
+                    renderResults(data.results);
+                    document.getElementById('statusBar').style.display = 'none';
+                }
+            })
+            .catch(err => {
+                document.getElementById('statusText').textContent = '❌ Lỗi kết nối: ' + err.message;
+            })
+            .finally(() => {
+                btn.querySelector('.btn-text').style.display = 'inline';
+                btn.querySelector('.btn-loader').style.display = 'none';
+                btn.disabled = false;
+            });
+        }
+
+        function renderResults(results) {
+            if (!results.length) {
+                document.getElementById('resultsSection').innerHTML = '<div class="no-results">Không tìm thấy video phù hợp tiêu chí. Thử từ khóa khác nhé!</div>';
+                document.getElementById('resultsSection').style.display = 'block';
+                return;
+            }
+
+            const jackpots = results.filter(r => r.is_jackpot).length;
+            const maxV = Math.max(...results.map(r => r.views));
+
+            document.getElementById('totalResults').textContent = results.length;
+            document.getElementById('jackpotCount').textContent = jackpots;
+            document.getElementById('maxViews').textContent = formatNum(maxV);
+            document.getElementById('statsSection').style.display = 'flex';
+
+            let html = '';
+            results.forEach((r, i) => {
+                const jackpotBadge = r.is_jackpot 
+                    ? '<span class="jackpot-badge">🏆 JACKPOT</span>' 
+                    : '';
+                const jackpotClass = r.is_jackpot ? 'card-jackpot' : '';
+                const ratio = r.subscribers > 0 ? (r.views / r.subscribers).toFixed(1) : '∞';
+                const dateBadge = r.within_year 
+                    ? '<span class="date-new">📅 ' + (r.relative_time || 'Mới') + '</span>' 
+                    : '<span class="date-old">📅 ' + (r.relative_time || 'N/A') + '</span>';
+                
+                html += `
+                <div class="result-card ${jackpotClass}" style="animation-delay: ${i * 0.08}s">
+                    <div class="card-rank">#${i+1}</div>
+                    <div class="card-thumb">
+                        <img src="${r.thumbnail}" alt="" loading="lazy">
+                        <span class="card-duration">${r.duration}</span>
+                    </div>
+                    <div class="card-info">
+                        <div class="card-title-row">
+                            ${jackpotBadge}
+                            ${dateBadge}
+                            <h3 class="card-title">${r.title}</h3>
+                        </div>
+                        <div class="card-channel">📺 ${r.channel}</div>
+                        <div class="card-stats">
+                            <span class="stat-views">👁️ ${r.views_formatted} views</span>
+                            <span class="stat-subs">👥 ${r.subscribers_formatted} subs</span>
+                            <span class="stat-ratio" title="Tỷ lệ Views/Subs">📊 x${ratio}</span>
+                        </div>
+                        <div class="card-remix" id="remix-${i}" style="display:none"></div>
+                        <div class="card-actions">
+                            <a href="${r.url}" target="_blank" class="btn-watch">▶️ Xem video</a>
+                            <button class="btn-copy" onclick="copyTitle('${r.title.replace(/'/g, "\\'")}')">📋 Copy tiêu đề</button>
+                        </div>
+                    </div>
+                </div>`;
+            });
+
+            document.getElementById('resultsList').innerHTML = html;
+            document.getElementById('resultsSection').style.display = 'block';
+        }
+
+        function remixTitles() {
+            if (!currentResults.length) return;
+            
+            const apiKey = document.getElementById('apiKeyInput').value.trim();
+            if (!apiKey) {
+                alert('Vui lòng nhập Gemini API Key để sử dụng tính năng này!');
+                document.getElementById('apiKeyInput').focus();
+                return;
+            }
+            
+            const btn = document.querySelector('.btn-remix');
+            btn.textContent = '⏳ Đang AI Remix...';
+            btn.disabled = true;
+
+            const titles = currentResults.map(r => r.title);
+
+            fetch('/api/remix', {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({titles, api_key: apiKey})
+            })
+            .then(res => res.json())
+            .then(data => {
+                if (data.error) {
+                    alert('Lỗi AI Remix:\n' + data.error);
+                }
+                if (data.remixes && data.remixes.length) {
+                    data.remixes.forEach((remix, i) => {
+                        const el = document.getElementById(`remix-${i}`);
+                        if (el) {
+                            el.innerHTML = `
+                                <div class="remix-header">🤖 Gợi ý Remix (80/20):</div>
+                                <div class="remix-item" onclick="copyTitle('${(remix.remix1||'').replace(/'/g, "\\'")}')">✨ ${remix.remix1 || 'N/A'}</div>
+                                <div class="remix-item" onclick="copyTitle('${(remix.remix2||'').replace(/'/g, "\\'")}')">✨ ${remix.remix2 || 'N/A'}</div>
+                            `;
+                            el.style.display = 'block';
+                            
+                            // Save remix to results
+                            if (currentResults[i]) {
+                                currentResults[i].remix1 = remix.remix1;
+                                currentResults[i].remix2 = remix.remix2;
+                            }
+                        }
+                    });
+                }
+            })
+            .catch(err => alert('Lỗi: ' + err.message))
+            .finally(() => {
+                btn.textContent = '🤖 AI Remix Tiêu đề';
+                btn.disabled = false;
+            });
+        }
+
+
+
+        function copyTitle(title) {
+            navigator.clipboard.writeText(title).then(() => {
+                showToast('📋 Đã copy: ' + title.substring(0, 50) + '...');
+            });
+        }
+
+        function showToast(msg) {
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.textContent = msg;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => { toast.classList.remove('show'); setTimeout(() => toast.remove(), 300); }, 2500);
+        }
+
+        function shakeInput() {
+            const el = document.querySelector('.search-input-wrapper');
+            el.classList.add('shake');
+            setTimeout(() => el.classList.remove('shake'), 500);
+        }
+
+        function formatNum(n) {
+            if (n >= 1e6) return (n/1e6).toFixed(1) + 'M';
+            if (n >= 1e3) return (n/1e3).toFixed(1) + 'K';
+            return n;
+        }
+
+        // Enter key support
+        document.getElementById('searchInput').addEventListener('keypress', e => {
+            if (e.key === 'Enter') startSearch();
+        });
+    </script>
+</body>
+</html>
